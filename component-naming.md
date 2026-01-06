@@ -16,7 +16,7 @@ Custom components created by the team should follow the pattern:
   - `INTAKE`
   - `CLIMB`
   - etc...
-- `<###>` a unique, mostly sequential 4-digit number for the specific parts in the subsystem
+- `<####>` a unique 4-digit number corresponding to the GitHub Issue number that tracks the part
 - `<SOMETHING-DESCRIPTIVE>` some text that describes the part, because the numbers can be hard to remember
 
 Why go to all of this trouble?
