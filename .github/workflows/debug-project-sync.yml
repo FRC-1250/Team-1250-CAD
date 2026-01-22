@@ -12,7 +12,7 @@ jobs:
       repository-projects: write
     steps:
       - name: Add issue to project
-        uses: actions/add-to-project@v0
+        uses: actions/add-to-project@v0.5.0
         with:
           project-url: https://github.com/orgs/FRC-1250/projects/15
           github-token: ${{ secrets.GITHUB_TOKEN }}
