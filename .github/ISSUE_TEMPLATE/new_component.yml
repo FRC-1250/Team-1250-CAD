@@ -10,32 +10,6 @@ body:
       value: |
         Use this form to register and track a newly designed or fabricated component.
 
-  - type: dropdown
-    id: subsystem
-    attributes:
-      label: Subsystem
-      description: Primary robot subsystem this component belongs to
-      options:
-        - CHASSIS
-        - INTAKE
-        - FUEL_MGMT
-        - SHOOTER
-        - CLIMB
-    validations:
-      required: true
-
-  - type: dropdown
-    id: component_type
-    attributes:
-      label: Component Type
-      description: How this component is produced or defined
-      options:
-        - FDM
-        - CNC
-        - DWG
-    validations:
-      required: true
-
   - type: textarea
     id: description
     attributes:
