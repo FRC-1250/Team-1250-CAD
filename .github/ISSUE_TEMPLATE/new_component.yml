@@ -16,13 +16,20 @@ body:
       label: Subsystem
       description: Primary robot subsystem this component belongs to
       options:
-        - CHASSIS
-        - INTAKE
-        - FUEL_MGMT
-        - SHOOTER
-        - CLIMB
+        - label: CHASSIS
+          value: subsystem:CHASSIS
+        - label: INTAKE
+          value: subsystem:INTAKE
+        - label: FUEL_MGMT
+          value: subsystem:FUEL_MGMT
+        - label: SHOOTER
+          value: subsystem:SHOOTER
+        - label: CLIMB
+          value: subsystem:CLIMB
     validations:
       required: true
+    label:
+      - "subsystem:{{value}}"
 
   - type: dropdown
     id: component_type
@@ -30,11 +37,18 @@ body:
       label: Component Type
       description: How this component is produced or defined
       options:
-        - FDM
-        - CNC
-        - DWG
+        - label: FDM - 3D Printed
+          value: component_type:FDM
+        - label: CNC - Made by a robot
+          value: component_type:CNC
+        - label: DWG - Made/modified by a person
+          value: component_type:DWG
+        - label: ASM - Assembly
+          value: component_type:ASM
     validations:
       required: true
+      label:
+        - "component_type:{{value}}"
 
   - type: textarea
     id: description
@@ -44,6 +58,8 @@ body:
       placeholder: Brief functional description
     validations:
       required: true
+    label:
+      - "component_type:{{value}}"
 
   - type: textarea
     id: notes
