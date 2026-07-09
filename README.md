@@ -6,3 +6,4 @@ Team 1250 CAD Repository
 
 ## Projects
 - [2026 - Rebuilt](https://github.com/orgs/FRC-1250/projects/15)
+- [2026 - Rebuilt-B](https://github.com/orgs/FRC-1250/projects/18)
