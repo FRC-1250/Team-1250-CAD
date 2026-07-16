@@ -97,7 +97,7 @@ def main():
     st = store.Store(args.db)
     rows = st.db.execute(
         "SELECT e.element_id, e.source_id, e.output_path, ds.identifier, ds.version_name, "
-        "       ds.document_name "
+        "       ds.document_name, ds.element_name "
         "FROM export e JOIN drawing_state ds "
         "  ON ds.element_id=e.element_id AND ds.source_id=e.source_id "
         "LEFT JOIN publish p "
@@ -130,11 +130,25 @@ def main():
             continue
         rel = "{}/{}".format(ident.bot_folder, ident.filename)
         dest = os.path.join(repo, ident.bot_folder, ident.filename)
+        # output_path is relative to output.root. Tolerate absolute paths written
+        # by older versions, but fall back to deriving it -- a stale absolute path
+        # from a moved tree must not fail a PDF that exists.
+        stored = r["output_path"] or ""
+        src = stored if os.path.isabs(stored) else os.path.join(resolve(cfg["output"]["root"]), stored)
+        if not os.path.exists(src):
+            derived = os.path.join(resolve(cfg["output"]["root"]), rel)
+            if os.path.exists(derived):
+                print("  note: stored path {!r} missing; using {}".format(stored, derived))
+                src = derived
+            else:
+                print("  SKIP {}: PDF not found (looked in {} and {})".format(
+                    ident.id, stored, derived))
+                continue
         hits = gh.find_by_identifier(ident.id)
-        plan.append((r, ident, rel, dest, hits))
+        plan.append((r, ident, rel, dest, hits, src))
 
     print("\n=== plan ===")
-    for r, ident, rel, dest, hits in plan:
+    for r, ident, rel, dest, hits, _src in plan:
         where = ("issue #{}".format(hits[0]["number"]) if len(hits) == 1
                  else "AMBIGUOUS: {}".format([h["number"] for h in hits]) if hits
                  else ("CREATE new issue" if args.create_issues else "NO MATCH -- no issue, PDF still committed"))
@@ -152,20 +166,26 @@ def main():
         return 0
 
     # --- commit ------------------------------------------------------------
-    for r, ident, rel, dest, hits in plan:
+    for r, ident, rel, dest, hits, src in plan:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        shutil.copy2(r["output_path"], dest)
+        shutil.copy2(src, dest)
         git(repo, "add", rel)
         staged.append((r, ident, rel, hits))
 
-    if not git(repo, "status", "--porcelain"):
-        print("\nno changes to commit (PDFs byte-identical to what's in the repo)")
-        return 0
-
-    msg = "Add drawing PDFs: {}".format(", ".join(i.id for _, i, _, _ in staged))
-    git(repo, "commit", "-m", msg)
-    sha = git(repo, "rev-parse", "HEAD")
-    print("\ncommitted {} ({} file(s))".format(sha[:8], len(staged)))
+    # Committing and linking are not atomic. A run interrupted between them (a
+    # hung push, ctrl-C, a 500 from GitHub) leaves the PDF committed with no
+    # publish row -- and an early return here would strand it forever, because
+    # the next run also finds "nothing to commit". So: if there is nothing new to
+    # commit, fall through to linking against HEAD rather than bailing out.
+    if git(repo, "status", "--porcelain"):
+        msg = "Add drawing PDFs: {}".format(", ".join(i.id for _, i, _, _ in staged))
+        git(repo, "commit", "-m", msg)
+        sha = git(repo, "rev-parse", "HEAD")
+        print("\ncommitted {} ({} file(s))".format(sha[:8], len(staged)))
+    else:
+        sha = git(repo, "rev-parse", "HEAD")
+        print("\nnothing new to commit; PDFs already in the repo at {}".format(sha[:8]))
+        print("(continuing to the linking step -- a previous run may have been interrupted)")
 
     if args.push:
         git(repo, "push")
@@ -199,9 +219,15 @@ def main():
                 print("  {} -> AMBIGUOUS ({}); commented on none".format(
                     ident.id, [h["number"] for h in hits]))
             elif args.create_issues:
-                num, url = gh.create_issue(
-                    "{} ".format(ident.id) + os.path.splitext(ident.filename)[0],
-                    issue_body(ident, blob))
+                # The drawing's tab name already IS "<id> <description>" -- that is
+                # the convention. Using it directly keeps the human's description
+                # and guarantees the id is in the title (so the next run matches).
+                # Building it from id + filename-stem duplicated the id, because
+                # the stem is the id: "1250-26B-102 1250-26B-102".
+                title = (r["element_name"] or ident.id).strip()
+                if ident.id not in title:
+                    title = "{} {}".format(ident.id, title)
+                num, url = gh.create_issue(title, issue_body(ident, blob))
                 st.db.execute(
                     "INSERT OR REPLACE INTO publish(element_id,source_id,format,status,identifier,"
                     "repo_path,commit_sha,blob_url,issue_number,comment_url,published_at) "

@@ -211,15 +211,20 @@ class Run:
 
             data, digest = self.api.download_external(doc["did"], fids[0])
 
-            folder = os.path.join(resolve(self.cfg["output"]["root"]), ident.bot_folder)
+            root = resolve(self.cfg["output"]["root"])
+            folder = os.path.join(root, ident.bot_folder)
             os.makedirs(folder, exist_ok=True)
             path = os.path.join(folder, ident.filename)
             with open(path, "wb") as f:
                 f.write(data)
 
+            # Store the path RELATIVE to output.root. An absolute path breaks the
+            # moment the tree moves -- which it did, and publish.py then failed
+            # with FileNotFoundError on a PDF that was sitting right there.
+            rel = "{}/{}".format(ident.bot_folder, ident.filename)
             self.store.finish_export(
                 el["id"], src, "PDF", "DONE",
-                translation_id=t["id"], output_path=path,
+                translation_id=t["id"], output_path=rel,
                 sha256=digest, byte_size=len(data), last_error=None,
             )
             self.exported.append((ident.id, path, len(data)))

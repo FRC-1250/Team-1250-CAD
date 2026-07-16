@@ -15,3 +15,6 @@ Team-1250-CAD/
 
 __pycache__/
 *.pyc
+
+# machine-local sandbox instance (keep config.sandbox.example.json)
+config.sandbox.json
