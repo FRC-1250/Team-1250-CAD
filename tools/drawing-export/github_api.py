@@ -91,4 +91,6 @@ class GitHub:
             "POST", "/repos/{}/{}/issues".format(self.owner, self.repo),
             {"title": title, "body": body},
         )
-        return r["number"], r["html_url"]
+        # node_id is the GraphQL id -- required to add the issue to a Project (v2),
+        # which has no REST API. Returning it here avoids a second lookup.
+        return r["number"], r["html_url"], r["node_id"]

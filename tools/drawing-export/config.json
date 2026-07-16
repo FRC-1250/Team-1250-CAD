@@ -1,50 +1,52 @@
 {
   "_comment": "Onshape drawing export config. See drawing-export-spec.md and CLAUDE.md.",
-
   "onshape": {
     "base_url": "https://cad.onshape.com/api/v16",
     "company_id": "68b9b68c8ebe03eeb23bbe39",
     "folder_parent_id": "2b21f048c6c582e58dd11553"
   },
-
   "documents": [
     {
       "key": "chassis",
       "subsystem": 1,
       "name": "1250-26B-100 Chassis",
       "did": "9277e520a8289c72778da2ae",
-      "wid": "7b7c1c4a728bdb6e94ce23eb"
+      "wid": "7b7c1c4a728bdb6e94ce23eb",
+      "assembly_eid": "1ab08d10bcb965e8bbf935e9"
     },
     {
       "key": "hopper",
       "subsystem": 2,
       "name": "200 - Hopper",
       "did": "68792c7463079f942fa974c6",
-      "wid": "c3ab1bd3857d6cb5d3dfd0d0"
+      "wid": "c3ab1bd3857d6cb5d3dfd0d0",
+      "assembly_eid": "df6bb314934de8ec13250c17"
     },
     {
       "key": "intake",
       "subsystem": 3,
       "name": "300 - Intake",
       "did": "2804f62a7e8f5ff183ab6572",
-      "wid": "0de470ed384a0ee48ac669a5"
+      "wid": "0de470ed384a0ee48ac669a5",
+      "assembly_eid": "8aa9cc5985d57ce5a0e8d405"
     },
     {
       "key": "indexer",
       "subsystem": 4,
       "name": "400 - Indexer",
       "did": "40947c5fc5c8a5c4365103df",
-      "wid": "1c8ba6abeb1db3a4d60fe11f"
+      "wid": "1c8ba6abeb1db3a4d60fe11f",
+      "assembly_eid": "8c5650ea9c31a6014c993977"
     },
     {
       "key": "shooter",
       "subsystem": 5,
       "name": "500 - Shooter",
       "did": "c77f90962367c7f31b513455",
-      "wid": "3fd4bdfdd69487024a4bdfae"
+      "wid": "3fd4bdfdd69487024a4bdfae",
+      "assembly_eid": "83d1a32e4bfea2905d460c3c"
     }
   ],
-
   "_excluded_deliberately": {
     "77ccfe85426b6dca10c64431": {
       "what": "Top-level robot assembly. Referenced by chassis V4/V13 auto-versions.",
@@ -53,7 +55,6 @@
       "decided": "2026-07-16"
     }
   },
-
   "output": {
     "root": "out",
     "repo_path": "../..",
@@ -62,7 +63,6 @@
     "_layout": "<repo>/<team>-<yy><bot>/<identifier>.pdf  e.g. 1250-26B/1250-26B-501.pdf",
     "_no_version_suffix": "git history IS the version history; issue links are commit-pinned blob URLs"
   },
-
   "subsystems": {
     "_comment": "Subsystem number -> human name, shown in issue comments. Not everyone knows the numbers. Costs no API call -- it's a local lookup. If a number is missing here, the name falls back to documents[].key, then to the bare number.",
     "1": "Chassis",
@@ -71,11 +71,9 @@
     "4": "Indexer",
     "5": "Shooter"
   },
-
   "users": {
     "_comment": "Onshape user id -> GitHub login, for attributing drawings in issue comments. Run `py reconcile_users.py` to populate. Attribution comes from the VERSION creator (free), not the drawing author -- see store.py.",
     "_why_manual": "Auto-matching mostly fails: 4 of 7 GitHub accounts on this repo have no `name` set, so there is nothing to match an Onshape display name against. Exact matches are applied automatically; everything else needs a human once.",
-
     "unresolved_policy": "none",
     "_unresolved_policy_options": {
       "none": "Post the comment with no @mention. Safe default -- never mentions the wrong person.",
@@ -83,7 +81,6 @@
       "subsystem_owner": "@mention the owner of the drawing's subsystem (see subsystem_owners)."
     },
     "fallback_login": null,
-
     "subsystem_owners": {
       "_comment": "Optional. Used only when unresolved_policy = subsystem_owner.",
       "1": null,
@@ -92,29 +89,45 @@
       "4": null,
       "5": null
     },
-
     "map": {
       "_comment": "onshape_user_id: github_login. Verified entries only.",
       "68b9b68b8ebe03eeb23bbd3a": "bmo-frc1250"
     },
-
     "suggestions": {
       "_comment": "Written by reconcile_users.py for review. Move entries into `map` once confirmed, or delete them. NEVER auto-applied -- a wrong @mention pings the wrong student."
     }
   },
-
   "budget": {
     "max_calls_per_run": 120,
     "max_calls_per_cycle": 2500,
     "warn_at_cycle_calls": 1500,
     "_note": "Educator = 2500/YEAR shared company-wide. Reset date UNRESOLVED (spec 6). Assume the LATER reading (~Feb 19 2027). Never spend against an assumed reset."
   },
-
   "http": {
     "poll_initial_seconds": 5,
     "poll_backoff_factor": 1.8,
     "poll_max_seconds": 60,
     "poll_max_attempts": 12,
     "timeout_seconds": 60
+  },
+  "project": {
+    "_comment": "GitHub Project (v2) to file drawings into. Run project_setup.py --project N --apply once per season first.",
+    "org": "FRC-1250",
+    "number": 18,
+    "_number_note": "CAD 2026 Rebuilt-B. Sandbox testing uses 19 via config.sandbox.json.",
+    "enabled": false,
+    "_enabled_note": "OFF until the Subsystem options on #18 match config.subsystems -- see project_setup.py.",
+    "field_map": {
+      "Link to PDF": "pdf_blob_url",
+      "Link to Drawing": "onshape_drawing_url",
+      "Link to Component": "onshape_component_url",
+      "Subsystem": "subsystem_name"
+    },
+    "_not_automated": {
+      "Component Type": "FDM/CNC/DWG/ASM is a fabrication decision. 31 FDM parts last season had no drawing at all -- a drawing existing does not imply DWG.",
+      "Need": "human quantity",
+      "Produced": "human quantity",
+      "Status": "human judgement about readiness"
+    }
   }
 }

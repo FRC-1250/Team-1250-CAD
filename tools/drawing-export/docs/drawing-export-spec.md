@@ -652,6 +652,28 @@ Record the fixtures. They pay for themselves — the exporter can then be refact
 
 ---
 
+## 10a. TODO — attribute the drawing's AUTHOR, not the versioner
+
+**Current behaviour is wrong-ish and known.** Attribution uses `BTVersionInfo.creator`
+— *who created the version* — because Stage 1 already fetches it, so it costs nothing.
+If Alice draws and Bob versions the document, the comment credits **Bob**.
+
+`BTDocumentElementInfo` carries no creator/author field, so the free path is exhausted.
+Options to investigate, cheapest first:
+
+| Approach | Cost | Notes |
+|---|---|---|
+| **Element metadata** — `GET /metadata/d/{did}/{wvm}/{wvmid}/e` | **1 call per changed doc** (~200/cycle) — returns *all* elements at once, not one per drawing | Does it expose `lastModifiedBy` / `createdBy` per element? **Verify free in the Explorer first.** Most promising. |
+| Document history / microversion log | unknown | Is there an endpoint mapping a microversion to the user who created it? If so, `element.microversionId` -> author, exactly right. Needs research. |
+| Onshape comments/audit trail | unknown | Enterprise-only features may not exist on EDU Educator. |
+| Accept version.creator | free | Document the limitation; treat "Drawn by" as "Last versioned by". |
+
+**Investigate in the Explorer (0 quota) before spending anything.** If element metadata
+carries a per-element modifier, it is worth ~200 calls/cycle for correct attribution;
+if it doesn't, rename the field to "Versioned by" and stop implying more than we know.
+
+Raised 2026-07-16.
+
 ## 11. Out of scope (v1)
 
 - Webhook receiver (§6.6) — revisit if frequency demands.

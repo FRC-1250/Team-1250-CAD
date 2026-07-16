@@ -26,6 +26,7 @@ import sys
 
 import github_api
 import identity
+import project_api
 import store
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +46,43 @@ def git(repo, *args, check=True):
     if check and p.returncode != 0:
         raise RuntimeError("git {}: {}".format(" ".join(args), p.stderr.strip()))
     return p.stdout.strip()
+
+
+def file_on_project(cfg, projects, issue_node_id, ident, doc, blob_url, version_id, element_id):
+    """Add the issue to the season's board and fill the derivable columns.
+
+    Returns (item_id, [notes]). Notes are non-fatal problems worth printing --
+    a missing field or option is reported, never silently skipped, and never
+    guessed around.
+    """
+    pcfg = cfg.get("project") or {}
+    num = pcfg.get("number")
+    notes = []
+    item = projects.add_issue(num, issue_node_id)
+
+    did, vid = doc["did"], version_id
+    values = {
+        "Link to PDF": blob_url,
+        "Link to Drawing": project_api.drawing_tab_url(did, vid, element_id),
+        "Link to Component": project_api.component_url(did, vid, doc.get("assembly_eid")),
+    }
+    for field, val in values.items():
+        err = projects.set_text(num, item, field, val)
+        if err:
+            notes.append(err)
+
+    sub = (cfg.get("subsystems") or {}).get(str(ident.subsystem))
+    if sub:
+        err = projects.set_single_select(num, item, "Subsystem", sub)
+        if err:
+            notes.append(err)
+    else:
+        notes.append("no subsystem name configured for {}".format(ident.subsystem))
+
+    # Component Type / Need / Produced / Status are deliberately left empty --
+    # see config.project._not_automated. A wrong value on the board people
+    # fabricate from is worse than a blank someone fills in.
+    return item, notes
 
 
 def author_label(cfg, creator_id, creator_name):
@@ -113,6 +151,23 @@ def issue_body(cfg, ident, blob_url, author=None):
     ).format(id=ident.id, sub=subsystem_label(cfg, ident.subsystem), by=by, url=blob_url)
 
 
+def _file(cfg, projects, docs_by_key, r, ident, blob, node_id, issue_no):
+    """Add to the project board, if enabled. Never fatal -- the PDF is committed
+    and the issue is commented regardless; the board is a bonus, not a gate."""
+    if not projects or not node_id:
+        return
+    doc = docs_by_key.get(r["document_key"]) or {"did": r["document_id"]}
+    try:
+        _, notes = file_on_project(cfg, projects, node_id, ident, doc, blob,
+                                   r["version_id"], r["element_id"])
+        pnum = (cfg.get("project") or {}).get("number")
+        print("       filed on project #{} (links + subsystem)".format(pnum))
+        for n in notes:
+            print("       NOTE: {}".format(n))
+    except Exception as e:
+        print("       project filing FAILED (issue #{} is still linked): {}".format(issue_no, e))
+
+
 def main():
     ap = argparse.ArgumentParser(description="Publish exported PDFs to GitHub.")
     ap.add_argument("--dry-run", action="store_true", help="report only; touch nothing")
@@ -136,7 +191,8 @@ def main():
     st = store.Store(args.db)
     rows = st.db.execute(
         "SELECT e.element_id, e.source_id, e.output_path, ds.identifier, ds.version_name, "
-        "       ds.document_name, ds.element_name, ds.creator_id, ds.creator_name "
+        "       ds.document_name, ds.element_name, ds.creator_id, ds.creator_name, "
+        "       ds.document_key, ds.version_id, ds.document_id "
         "FROM export e JOIN drawing_state ds "
         "  ON ds.element_id=e.element_id AND ds.source_id=e.source_id "
         "LEFT JOIN publish p "
@@ -153,6 +209,10 @@ def main():
         sys.exit("repo not found at {} -- clone it first".format(repo))
 
     gh = github_api.GitHub(owner, name, token)
+    pcfg = cfg.get("project") or {}
+    projects = (project_api.Projects(token, pcfg.get("org", owner))
+                if pcfg.get("enabled") and token else None)
+    docs_by_key = {d["key"]: d for d in (cfg.get("documents") or [])}
     if not args.dry_run and not token:
         sys.exit(
             "No GitHub token.\n"
@@ -248,6 +308,8 @@ def main():
                      hits[0]["number"], url, store.now()),
                 )
                 print("  {} -> commented on #{}".format(ident.id, hits[0]["number"]))
+                _file(cfg, projects, docs_by_key, r, ident, blob, hits[0].get("node_id"),
+                      hits[0]["number"])
             elif len(hits) > 1:
                 st.db.execute(
                     "INSERT OR REPLACE INTO publish(element_id,source_id,format,status,identifier,"
@@ -268,7 +330,7 @@ def main():
                 if ident.id not in title:
                     title = "{} {}".format(ident.id, title)
                 author = author_label(cfg, r["creator_id"], r["creator_name"])
-                num, url = gh.create_issue(title, issue_body(cfg, ident, blob, author))
+                num, url, node = gh.create_issue(title, issue_body(cfg, ident, blob, author))
                 st.db.execute(
                     "INSERT OR REPLACE INTO publish(element_id,source_id,format,status,identifier,"
                     "repo_path,commit_sha,blob_url,issue_number,comment_url,published_at) "
@@ -276,6 +338,7 @@ def main():
                     (r["element_id"], r["source_id"], ident.id, rel, sha, blob, num, url, store.now()),
                 )
                 print("  {} -> created issue #{}".format(ident.id, num))
+                _file(cfg, projects, docs_by_key, r, ident, blob, node, num)
             else:
                 st.db.execute(
                     "INSERT OR REPLACE INTO publish(element_id,source_id,format,status,identifier,"
