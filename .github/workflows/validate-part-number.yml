@@ -1,0 +1,42 @@
+name: Validate part number
+
+# Opening an issue is how a part number gets claimed and how work gets assigned
+# before any CAD exists. This checks the number is well-formed, unused, and in a
+# real subsystem -- at the moment the mistake happens, rather than weeks later at
+# export time when the wrong number is already in someone's CAD tab.
+#
+# Costs no Onshape quota. Reads/writes GitHub only.
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write        # comment + label. Nothing else.
+  contents: read       # checkout, to import tools/drawing-export/identity.py
+
+# An edit re-triggers this. Cancel the older run so two of them can't race to
+# write the same comment.
+concurrency:
+  group: part-number-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Check the part number
+        run: python .github/scripts/validate_part_number.py
+        env:
+          # The default token. No PAT, no secret to leak, and it cannot reach
+          # outside this repository.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}

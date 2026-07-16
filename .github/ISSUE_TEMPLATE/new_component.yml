@@ -49,20 +49,6 @@ body:
       required: true
 
   - type: dropdown
-    id: subsystem
-    attributes:
-      label: Subsystem
-      description: Should match the subsystem digit in the part number above.
-      options:
-        - 1 - Chassis
-        - 2 - Hopper
-        - 3 - Intake
-        - 4 - Indexer
-        - 5 - Shooter
-    validations:
-      required: true
-
-  - type: dropdown
     id: fabrication
     attributes:
       label: How will it be made?
