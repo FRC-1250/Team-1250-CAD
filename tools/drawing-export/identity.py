@@ -48,6 +48,17 @@ class Identity:
         self.raw = raw
 
     @property
+    def description(self):
+        """The human-readable remainder of the name, with the id removed.
+
+            '1250-26B-102 Gearbox Plate' -> 'Gearbox Plate'
+            'Chassis 1250-26B-1101'      -> 'Chassis'
+            '1250-26B-102'               -> ''
+        """
+        rest = self.raw.replace(self.id, " ")
+        return " ".join(rest.split()).strip(" -_:")
+
+    @property
     def bot_folder(self):
         """Repo folder for this drawing, e.g. '1250-26B'.
 

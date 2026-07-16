@@ -49,7 +49,7 @@ def git(repo, *args, check=True):
 
 
 def file_on_project(cfg, projects, issue_node_id, ident, doc, blob_url, version_id,
-                    element_id, kind):
+                    element_id, kind, issue_title=None):
     """Add the issue to the season's board and fill the derivable columns.
 
     Returns (item_id, [notes]). Notes are non-fatal problems worth printing --
@@ -72,6 +72,21 @@ def file_on_project(cfg, projects, issue_node_id, ident, doc, blob_url, version_
         "Link to Component": (project_api.drawing_tab_url(did, vid, element_id) if not is_drawing
                               else project_api.component_url(did, vid, doc.get("assembly_eid"))),
     }
+    # Description: the human part of the name, minus the part number.
+    # Prefer the ISSUE title's description over the CAD tab's. Under the new
+    # workflow the issue is written FIRST to assign the work ("1250-26B-103
+    # Gearbox Plate"), while the tab may later be named just "1250-26B-103".
+    # The issue is where a human actually described the thing.
+    desc = ""
+    if issue_title:
+        it = identity.parse(issue_title)
+        if it:
+            desc = it.description
+    if not desc:
+        desc = ident.description
+    if desc:
+        values["Description"] = desc
+
     for field, val in values.items():
         if not val:
             continue
@@ -172,7 +187,7 @@ def issue_body(cfg, ident, blob_url, author=None):
     ).format(id=ident.id, sub=subsystem_label(cfg, ident.subsystem), by=by, url=blob_url)
 
 
-def _file(cfg, projects, docs_by_key, r, ident, blob, node_id, issue_no):
+def _file(cfg, projects, docs_by_key, r, ident, blob, node_id, issue_no, issue_title=None):
     """Add to the project board, if enabled. Never fatal -- the PDF is committed
     and the issue is commented regardless; the board is a bonus, not a gate."""
     if not projects or not node_id:
@@ -181,7 +196,7 @@ def _file(cfg, projects, docs_by_key, r, ident, blob, node_id, issue_no):
     try:
         _, notes = file_on_project(cfg, projects, node_id, ident, doc, blob,
                                    r["version_id"], r["element_id"],
-                                   r["element_kind"] or "drawing")
+                                   r["element_kind"] or "drawing", issue_title)
         pnum = (cfg.get("project") or {}).get("number")
         print("       filed on project #{} (links + subsystem)".format(pnum))
         for n in notes:
@@ -333,7 +348,7 @@ def main():
                 )
                 print("  {} -> commented on #{}".format(ident.id, hits[0]["number"]))
                 _file(cfg, projects, docs_by_key, r, ident, blob, hits[0].get("node_id"),
-                      hits[0]["number"])
+                      hits[0]["number"], hits[0].get("title"))
             elif len(hits) > 1:
                 st.db.execute(
                     "INSERT OR REPLACE INTO publish(element_id,source_id,format,status,identifier,"
@@ -362,7 +377,7 @@ def main():
                     (r["element_id"], r["source_id"], ident.id, rel, sha, blob, num, url, store.now()),
                 )
                 print("  {} -> created issue #{}".format(ident.id, num))
-                _file(cfg, projects, docs_by_key, r, ident, blob, node, num)
+                _file(cfg, projects, docs_by_key, r, ident, blob, node, num, title)
             else:
                 st.db.execute(
                     "INSERT OR REPLACE INTO publish(element_id,source_id,format,status,identifier,"

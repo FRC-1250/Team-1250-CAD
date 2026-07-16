@@ -121,7 +121,8 @@
       "Link to PDF": "pdf_blob_url",
       "Link to Drawing": "onshape_drawing_url",
       "Link to Component": "onshape_component_url",
-      "Subsystem": "subsystem_name"
+      "Subsystem": "subsystem_name",
+      "Description": "description from the issue title (preferred) or the CAD tab name"
     },
     "_not_automated": {
       "Need": "human quantity",
@@ -135,5 +136,11 @@
       "FDM": "human: 3D printed. Nothing in Onshape distinguishes printer-bound from mill-bound.",
       "CNC": "human: machined."
     }
+  },
+  "part_prefix": {
+    "_comment": "Current season identity. next_number.py scans issue titles matching this to suggest the next free part number.",
+    "team": "1250",
+    "yy": "26",
+    "bot": "B"
   }
 }

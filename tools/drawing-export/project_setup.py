@@ -29,7 +29,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(HERE, "config.json")
 SECRETS = os.path.join(HERE, "secrets.json")
 
-LINK_FIELDS = ["Link to PDF"]  # 'Link to Drawing' / 'Link to Component' already exist
+# Fields we add if missing. ADDING A FIELD IS NON-DESTRUCTIVE -- it touches no
+# existing item. Only replacing single-select OPTIONS destroys data, which is why
+# --fields and --subsystems are separate flags.
+NEW_FIELDS = [
+    ("Link to PDF", "TEXT"),    # the exported drawing PDF, commit-pinned
+    ("Description", "TEXT"),    # the human part of the name, minus the part number
+]
 
 
 def gql(tok, query, variables=None):
@@ -71,6 +77,10 @@ def main():
     ap.add_argument("--project", type=int, required=True, help="project number, e.g. 19")
     ap.add_argument("--org", default="FRC-1250")
     ap.add_argument("--apply", action="store_true", help="actually make changes")
+    ap.add_argument("--fields", action="store_true",
+                    help="add missing fields only. SAFE -- adding a field touches no existing item.")
+    ap.add_argument("--subsystems", action="store_true",
+                    help="replace Subsystem options. DESTRUCTIVE on a populated board.")
     ap.add_argument("--force", action="store_true",
                     help="drop in-use Subsystem options anyway (DESTROYS those values)")
     ap.add_argument("--config", default=CONFIG)
@@ -100,8 +110,13 @@ def main():
     fields = {f["name"]: f for f in p["fields"]["nodes"] if f}
 
     # --- Subsystem options ------------------------------------------------
-    sub = fields.get("Subsystem")
-    if not sub:
+    do_sub = args.subsystems or not args.fields      # default: both
+    do_fields = args.fields or not args.subsystems
+
+    sub = fields.get("Subsystem") if do_sub else None
+    if not do_sub:
+        pass  # --fields: adding fields is safe, so don't touch options at all
+    elif not sub:
         print("  no `Subsystem` field on this project")
     else:
         have = [o["name"] for o in sub.get("options", [])]
@@ -137,9 +152,11 @@ def main():
         else:
             print("\n  (report only -- pass --apply to change)")
 
-    # --- link fields ------------------------------------------------------
+    # --- fields (always safe to add) --------------------------------------
+    if not do_fields:
+        return 0
     print()
-    for name in LINK_FIELDS:
+    for name, _dtype in NEW_FIELDS:
         if name in fields:
             print("  field {!r} already exists".format(name))
             continue
