@@ -80,10 +80,12 @@ def main():
     ap.add_argument("--create-issues", action="store_true",
                     help="OPEN issues for unmatched parts (off by default -- read the docstring)")
     ap.add_argument("--push", action="store_true", help="push the commit (default: commit locally only)")
+    ap.add_argument("--config", default=CONFIG,
+                    help="alternate config, e.g. config.sandbox.json (spec 5b.5)")
     ap.add_argument("--db", default="state.db")
     args = ap.parse_args()
 
-    cfg = json.load(open(CONFIG, encoding="utf-8"))
+    cfg = json.load(open(args.config, encoding="utf-8"))
     repo = resolve(cfg["output"]["repo_path"])
     owner, name = cfg["output"]["repo_url"].rstrip("/").split("/")[-2:]
 

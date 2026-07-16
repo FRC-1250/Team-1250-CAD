@@ -176,6 +176,9 @@ class Run:
 
     def stage3_export(self, doc, version, el, ident):
         src = version["id"]
+        # version.creator is free -- Stage 1 already fetched it. It attributes the
+        # VERSION, not the drawing; see the schema comment in store.py.
+        creator = version.get("creator") or {}
         self.store.record_drawing_state(
             source_id=src,
             source_kind="version",
@@ -189,6 +192,8 @@ class Run:
             version_name=version.get("name"),
             microversion=el["microversionId"],
             configuration=None,
+            creator_id=creator.get("id"),
+            creator_name=creator.get("name"),
             observed_at=store.now(),
         )
 
@@ -293,10 +298,12 @@ def main():
         "documents, so it costs 3 paginated calls, not 1 -- a net loss (spec 4.3).",
     )
     ap.add_argument("--dry-run", action="store_true", help="refuse all live calls")
+    ap.add_argument("--config", default=CONFIG,
+                    help="alternate config, e.g. config.sandbox.json (spec 5b.5)")
     ap.add_argument("--db", default="state.db")
     args = ap.parse_args()
 
-    cfg = json.load(open(CONFIG, encoding="utf-8"))
+    cfg = json.load(open(args.config, encoding="utf-8"))
     docs = cfg["documents"]
     if args.doc:
         keys = set(args.doc)

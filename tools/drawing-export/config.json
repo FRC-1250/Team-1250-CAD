@@ -63,6 +63,37 @@
     "_no_version_suffix": "git history IS the version history; issue links are commit-pinned blob URLs"
   },
 
+  "users": {
+    "_comment": "Onshape user id -> GitHub login, for attributing drawings in issue comments. Run `py reconcile_users.py` to populate. Attribution comes from the VERSION creator (free), not the drawing author -- see store.py.",
+    "_why_manual": "Auto-matching mostly fails: 4 of 7 GitHub accounts on this repo have no `name` set, so there is nothing to match an Onshape display name against. Exact matches are applied automatically; everything else needs a human once.",
+
+    "unresolved_policy": "none",
+    "_unresolved_policy_options": {
+      "none": "Post the comment with no @mention. Safe default -- never mentions the wrong person.",
+      "fallback": "@mention `fallback_login` for anything unmapped.",
+      "subsystem_owner": "@mention the owner of the drawing's subsystem (see subsystem_owners)."
+    },
+    "fallback_login": null,
+
+    "subsystem_owners": {
+      "_comment": "Optional. Used only when unresolved_policy = subsystem_owner.",
+      "1": null,
+      "2": null,
+      "3": null,
+      "4": null,
+      "5": null
+    },
+
+    "map": {
+      "_comment": "onshape_user_id: github_login. Verified entries only.",
+      "68b9b68b8ebe03eeb23bbd3a": "bmo-frc1250"
+    },
+
+    "suggestions": {
+      "_comment": "Written by reconcile_users.py for review. Move entries into `map` once confirmed, or delete them. NEVER auto-applied -- a wrong @mention pings the wrong student."
+    }
+  },
+
   "budget": {
     "max_calls_per_run": 120,
     "max_calls_per_cycle": 2500,

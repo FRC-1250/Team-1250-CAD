@@ -1,0 +1,56 @@
+{
+  "_README": [
+    "SANDBOX CONFIG -- copy to config.sandbox.json and set repo_url/repo_path to a",
+    "throwaway repo you own. Then:",
+    "",
+    "    py publish.py --config config.sandbox.json --dry-run",
+    "    py publish.py --config config.sandbox.json --create-issues --push",
+    "",
+    "Why this works with ZERO Onshape quota: Stage A already paid for the PDFs and",
+    "they live in state.db. Stage B reads from there. Onshape is never touched, so",
+    "you can iterate on issue creation, matching, and comment formatting as many",
+    "times as you like for free. GitHub's API is 5,000 req/hr -- effectively",
+    "unlimited here.",
+    "",
+    "Delete and recreate the sandbox repo whenever it gets messy. That is the point."
+  ],
+
+  "onshape": {
+    "_comment": "Unused by publish.py. Present so one config shape works for both stages.",
+    "base_url": "https://cad.onshape.com/api/v16",
+    "company_id": "68b9b68c8ebe03eeb23bbe39",
+    "folder_parent_id": "2b21f048c6c582e58dd11553"
+  },
+
+  "documents": [],
+
+  "users": {
+    "unresolved_policy": "none",
+    "fallback_login": null,
+    "subsystem_owners": {},
+    "map": {},
+    "suggestions": {}
+  },
+
+  "output": {
+    "root": "out",
+    "repo_path": "../drawing-export-sandbox",
+    "repo_url": "https://github.com/YOUR-USER/drawing-export-sandbox",
+    "_note": "Point at a scratch repo. Clone it next to this one first."
+  },
+
+  "budget": {
+    "max_calls_per_run": 0,
+    "max_calls_per_cycle": 2500,
+    "warn_at_cycle_calls": 1500,
+    "_max_calls_per_run": "0 = tripwire. Stage B never calls Onshape; if something tries, it fails loudly instead of quietly spending real quota against a sandbox run."
+  },
+
+  "http": {
+    "poll_initial_seconds": 5,
+    "poll_backoff_factor": 1.8,
+    "poll_max_seconds": 60,
+    "poll_max_attempts": 12,
+    "timeout_seconds": 60
+  }
+}

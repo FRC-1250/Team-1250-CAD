@@ -27,6 +27,13 @@ CREATE TABLE IF NOT EXISTS drawing_state (
     version_name   TEXT,
     microversion   TEXT,
     configuration  TEXT,
+    -- Attribution. Comes from BTVersionInfo.creator, which Stage 1 already
+    -- fetches, so it costs nothing. CAVEAT: this is who created the VERSION,
+    -- not necessarily who authored the drawing -- the elements response carries
+    -- no creator field, and element metadata would cost a call per document.
+    -- If Alice draws and Bob versions, this says Bob.
+    creator_id     TEXT,
+    creator_name   TEXT,
     observed_at    TEXT NOT NULL,
     PRIMARY KEY (element_id, source_id)
 );
@@ -99,12 +106,32 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+# Columns added after the first release. `CREATE TABLE IF NOT EXISTS` silently
+# does nothing on an existing database, so new columns must be migrated in
+# explicitly or every upgrade crashes on a missing column.
+MIGRATIONS = [
+    ("drawing_state", "creator_id", "TEXT"),
+    ("drawing_state", "creator_name", "TEXT"),
+]
+
+
 class Store:
     def __init__(self, path):
         self.db = sqlite3.connect(path)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
+        self._migrate()
         self.db.commit()
+
+    def _migrate(self):
+        for table, col, decl in MIGRATIONS:
+            have = {r["name"] for r in self.db.execute("PRAGMA table_info({})".format(table))}
+            if not have:
+                continue  # table doesn't exist yet; SCHEMA just created it fresh
+            if col not in have:
+                self.db.execute(
+                    "ALTER TABLE {} ADD COLUMN {} {}".format(table, col, decl)
+                )
 
     def close(self):
         self.db.close()
