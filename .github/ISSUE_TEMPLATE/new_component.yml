@@ -1,6 +1,6 @@
 name: New Component
 description: Add and track a new FRC1250 produced component
-title: "FRC1250-26-00xx <your_description_here>"
+title: "1250-26B-SNN <your_description_here>"
 labels: []
 assignees: []
 
@@ -10,6 +10,35 @@ body:
       value: |
         Use this form to register and track a newly designed or fabricated component.
 
+        ### Put the part number in the title
+
+        Replace `SNN` with the subsystem digit and a two-digit part number:
+
+        | | |
+        |---|---|
+        | `1250-26B-101` | Chassis, part 01 |
+        | `1250-26B-502` | Shooter, part 02 |
+        | `1250-26B-A503` | Shooter **subassembly** drawing 03 (note the `A`) |
+
+        **Subsystems:** `1` Chassis · `2` Hopper · `3` Intake · `4` Indexer · `5` Shooter
+
+        **Don't know the next free number?** Run:
+        ```
+        py tools/drawing-export/next_number.py
+        ```
+        It reads every issue (open and closed) and tells you the next free number
+        in each subsystem. **Opening this issue is what claims the number** — so
+        open it first, before the part exists in CAD.
+
+        ### Why the number matters
+
+        Name the Onshape drawing or part-studio tab with the *same* part number.
+        The exporter matches this issue by that number and posts the PDF plus links
+        back here automatically. A tab that doesn't follow the convention is
+        **skipped, not exported** — that's deliberate, to keep the numbering honest.
+
+        See [component-naming.md](../../component-naming.md) for the full convention.
+
   - type: textarea
     id: description
     attributes:
@@ -18,6 +47,37 @@ body:
       placeholder: Brief functional description
     validations:
       required: true
+
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: Subsystem
+      description: Should match the subsystem digit in the part number above.
+      options:
+        - 1 - Chassis
+        - 2 - Hopper
+        - 3 - Intake
+        - 4 - Indexer
+        - 5 - Shooter
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fabrication
+    attributes:
+      label: How will it be made?
+      description: >
+        The exporter sets DWG/ASM automatically when it finds a drawing, but it
+        cannot tell a printed part from a machined one — nothing in Onshape says
+        which. Answer here so the board is right.
+      options:
+        - FDM (3D printed)
+        - CNC (machined)
+        - DWG (made by hand from a drawing)
+        - ASM (assembly)
+        - Not sure yet
+    validations:
+      required: false
 
   - type: textarea
     id: notes
