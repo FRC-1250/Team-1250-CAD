@@ -43,7 +43,7 @@ class FakeClient:
         self.calls.append(("versions", did))
         return self._versions
 
-    def drawings_at_version(self, did, vid):
+    def elements_at_version(self, did, vid):
         self.calls.append(("elements", did, vid))
         return self._drawings
 
@@ -52,14 +52,9 @@ class FakeClient:
 
 
 def drawings_from_1_5():
-    """Apply the real Stage 2 element filter to the unfiltered capture."""
-    els = fixture("response_1-5.json")
-    return [
-        e for e in els
-        if e.get("elementType") == osapi.DRAWING_ELEMENT_TYPE
-        and e.get("dataType") == osapi.DRAWING_DATA_TYPE
-        and not e.get("deleted", False)
-    ]
+    """Drawings only, via the real classifier."""
+    return [e for e in fixture("response_1-5.json")
+            if osapi.classify(e) == osapi.KIND_DRAWING and not e.get("deleted", False)]
 
 
 results = []
@@ -130,7 +125,7 @@ def main():
     print("\n[5] full cascade replay -> chassis exports NOTHING, loudly")
     tmp = os.path.join(tempfile.mkdtemp(), "t.db")
     st = store.Store(tmp)
-    fake = FakeClient(vs, dwgs)
+    fake = FakeClient(vs, fixture("response_1-5.json"))
     run = export.Run(cfg, st, fake, "testrun")
     # V17 is a no-op, so stage1 stops there. Use V16 (real content) to reach stage2.
     st.set_state("version:" + chassis["did"], "none")
@@ -140,6 +135,22 @@ def main():
     check("all 3 skips recorded", len(st.skips_for_run("testrun")) == 3)
     check("skip reason is the naming gate",
           all(r["reason"] == "name does not match convention" for r in st.skips_for_run("testrun")))
+    check("the unnumbered 'Chassis' part studio is NOT flagged",
+          all("Tube" in r["subject"] for r in st.skips_for_run("testrun")),
+          "an unnumbered source part studio is the norm, not a mistake")
+
+    print("\n[5b] classifier: drawings vs part studios vs neither")
+    kinds = {e["name"]: osapi.classify(e) for e in fixture("response_1-5.json")}
+    check("part studio classified", kinds["Chassis"] == osapi.KIND_PARTSTUDIO)
+    check("drawing classified", kinds['Tube 2"x1"x18.5" Drawing 1'] == osapi.KIND_DRAWING)
+    check("assembly ignored", kinds["100 - Chassis"] is None)
+    check("BOM ignored", kinds["BOM : 100 - Chassis"] is None)
+    check("elementType=DRAWING still matches nothing",
+          not [e for e in fixture("response_1-5.json") if e.get("elementType") == "DRAWING"])
+
+    print("\n[5c] Component Type derives from the A prefix, free")
+    check("part -> DWG", identity.parse("1250-26B-102").is_subassembly is False)
+    check("subassembly -> ASM", identity.parse("1250-26A-A503").is_subassembly is True)
 
     print("\n[6] first-export defaulting (spec 9 -- the KeyError bug)")
     check("last_exported_microversion returns None, not KeyError",

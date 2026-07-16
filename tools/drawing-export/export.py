@@ -142,13 +142,29 @@ class Run:
     # -- STAGE 2 ---------------------------------------------------------
 
     def stage2_changed_drawings(self, doc, version):
+        """Returns [(el, ident, kind)] worth acting on.
+
+        Two kinds now (same 1 call -- we fetch unfiltered and classify):
+          drawing    -> export a PDF, Component Type DWG (part) or ASM (subassembly)
+          partstudio -> the derived, part-numbered tab. No drawing exists, so no
+                        PDF: it gets an issue + Link to Component, and a human
+                        picks FDM vs CNC. Nothing in Onshape distinguishes a part
+                        destined for a printer from one destined for a mill.
+        """
         out = []
-        for el in self.api.drawings_at_version(doc["did"], version["id"]):
+        for el in self.api.elements_at_version(doc["did"], version["id"]):
+            kind = osapi.classify(el)
+            if kind is None:
+                continue  # assemblies, BOMs, blobs, CAM/feature studios: not ours
+
             ident = identity.parse(el["name"])
             if ident is None:
                 # The regex GATES export (spec 4.8) -- deliberately, to enforce
                 # the numbering scheme. Loudly, so it teaches rather than hides.
-                self.skip("stage2", el["name"], "name does not match convention")
+                # Only complain about drawings: unnumbered Part Studios are the
+                # NORM (the source model everything derives from), not a mistake.
+                if kind == osapi.KIND_DRAWING:
+                    self.skip("stage2", el["name"], "name does not match convention")
                 continue
 
             if ident.subsystem != doc.get("subsystem"):
@@ -169,12 +185,12 @@ class Run:
                 self.skip("stage2", ident.id, "unchanged since last export")
                 continue
 
-            out.append((el, ident))
+            out.append((el, ident, kind))
         return out
 
     # -- STAGE 3 ---------------------------------------------------------
 
-    def stage3_export(self, doc, version, el, ident):
+    def stage3_export(self, doc, version, el, ident, kind=osapi.KIND_DRAWING):
         src = version["id"]
         # version.creator is free -- Stage 1 already fetched it. It attributes the
         # VERSION, not the drawing; see the schema comment in store.py.
@@ -191,11 +207,19 @@ class Run:
             version_id=version["id"],
             version_name=version.get("name"),
             microversion=el["microversionId"],
+            element_kind=kind,
             configuration=None,
             creator_id=creator.get("id"),
             creator_name=creator.get("name"),
             observed_at=store.now(),
         )
+
+        if kind == osapi.KIND_PARTSTUDIO:
+            # No drawing exists, so there is nothing to translate. State is
+            # recorded so Stage B can open an issue and link the component;
+            # Component Type stays blank for a human to pick FDM vs CNC.
+            self.exported.append((ident.id, "(part studio -- no PDF)", 0))
+            return
 
         if self.store.already_exported(el["id"], src):
             self.skip("stage3", ident.id, "already exported at this version")
@@ -260,8 +284,8 @@ class Run:
         version = self.stage1_new_version(doc)
         if version is None:
             return
-        for el, ident in self.stage2_changed_drawings(doc, version):
-            self.stage3_export(doc, version, el, ident)
+        for el, ident, kind in self.stage2_changed_drawings(doc, version):
+            self.stage3_export(doc, version, el, ident, kind)
         doc["_version_done"] = version["id"]
 
 

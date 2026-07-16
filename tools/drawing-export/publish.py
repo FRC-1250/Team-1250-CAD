@@ -48,7 +48,8 @@ def git(repo, *args, check=True):
     return p.stdout.strip()
 
 
-def file_on_project(cfg, projects, issue_node_id, ident, doc, blob_url, version_id, element_id):
+def file_on_project(cfg, projects, issue_node_id, ident, doc, blob_url, version_id,
+                    element_id, kind):
     """Add the issue to the season's board and fill the derivable columns.
 
     Returns (item_id, [notes]). Notes are non-fatal problems worth printing --
@@ -61,12 +62,19 @@ def file_on_project(cfg, projects, issue_node_id, ident, doc, blob_url, version_
     item = projects.add_issue(num, issue_node_id)
 
     did, vid = doc["did"], version_id
+    is_drawing = kind == "drawing"
+
     values = {
-        "Link to PDF": blob_url,
-        "Link to Drawing": project_api.drawing_tab_url(did, vid, element_id),
-        "Link to Component": project_api.component_url(did, vid, doc.get("assembly_eid")),
+        # A part studio has no drawing, so no PDF and no drawing tab -- only the
+        # component link. Writing empty strings would look like a broken link.
+        "Link to PDF": blob_url if is_drawing else None,
+        "Link to Drawing": project_api.drawing_tab_url(did, vid, element_id) if is_drawing else None,
+        "Link to Component": (project_api.drawing_tab_url(did, vid, element_id) if not is_drawing
+                              else project_api.component_url(did, vid, doc.get("assembly_eid"))),
     }
     for field, val in values.items():
+        if not val:
+            continue
         err = projects.set_text(num, item, field, val)
         if err:
             notes.append(err)
@@ -79,9 +87,22 @@ def file_on_project(cfg, projects, issue_node_id, ident, doc, blob_url, version_
     else:
         notes.append("no subsystem name configured for {}".format(ident.subsystem))
 
-    # Component Type / Need / Produced / Status are deliberately left empty --
-    # see config.project._not_automated. A wrong value on the board people
-    # fabricate from is worse than a blank someone fills in.
+    # Component Type: derivable ONLY for drawings, and only because the numbering
+    # says so -- the `A` prefix marks a subassembly. "If we made a drawing for it,
+    # it should be tagged FAB for parts and ASSY for assemblies" -> DWG / ASM.
+    #
+    # For a part studio we set NOTHING: FDM vs CNC is a fabrication decision and
+    # nothing in Onshape distinguishes a part bound for a printer from one bound
+    # for a mill. Guessing would misfile it on the board people build from.
+    if is_drawing:
+        ctype = "ASM" if ident.is_subassembly else "DWG"
+        err = projects.set_single_select(num, item, "Component Type", ctype)
+        if err:
+            notes.append(err)
+    else:
+        notes.append("Component Type left blank -- pick FDM or CNC by hand")
+
+    # Need / Produced / Status stay empty: human quantities and judgement.
     return item, notes
 
 
@@ -159,7 +180,8 @@ def _file(cfg, projects, docs_by_key, r, ident, blob, node_id, issue_no):
     doc = docs_by_key.get(r["document_key"]) or {"did": r["document_id"]}
     try:
         _, notes = file_on_project(cfg, projects, node_id, ident, doc, blob,
-                                   r["version_id"], r["element_id"])
+                                   r["version_id"], r["element_id"],
+                                   r["element_kind"] or "drawing")
         pnum = (cfg.get("project") or {}).get("number")
         print("       filed on project #{} (links + subsystem)".format(pnum))
         for n in notes:
@@ -190,14 +212,16 @@ def main():
 
     st = store.Store(args.db)
     rows = st.db.execute(
-        "SELECT e.element_id, e.source_id, e.output_path, ds.identifier, ds.version_name, "
+        "SELECT ds.element_id, ds.source_id, e.output_path, ds.identifier, ds.version_name, "
         "       ds.document_name, ds.element_name, ds.creator_id, ds.creator_name, "
-        "       ds.document_key, ds.version_id, ds.document_id "
-        "FROM export e JOIN drawing_state ds "
+        "       ds.document_key, ds.version_id, ds.document_id, ds.element_kind "
+        "FROM drawing_state ds "
+        "LEFT JOIN export e "
         "  ON ds.element_id=e.element_id AND ds.source_id=e.source_id "
         "LEFT JOIN publish p "
-        "  ON p.element_id=e.element_id AND p.source_id=e.source_id AND p.format=e.format "
-        "WHERE e.status='DONE' AND (p.status IS NULL OR p.status NOT IN ('LINKED','COMMITTED')) "
+        "  ON p.element_id=ds.element_id AND p.source_id=ds.source_id "
+        "WHERE (e.status='DONE' OR ds.element_kind='partstudio') "
+        "  AND (p.status IS NULL OR p.status NOT IN ('LINKED','COMMITTED')) "
     ).fetchall()
 
     if not rows:

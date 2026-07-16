@@ -124,10 +124,16 @@
       "Subsystem": "subsystem_name"
     },
     "_not_automated": {
-      "Component Type": "FDM/CNC/DWG/ASM is a fabrication decision. 31 FDM parts last season had no drawing at all -- a drawing existing does not imply DWG.",
       "Need": "human quantity",
       "Produced": "human quantity",
-      "Status": "human judgement about readiness"
+      "Status": "human judgement about readiness",
+      "Component Type (part studios only)": "FDM vs CNC is a fabrication decision. Drawings get DWG/ASM automatically."
+    },
+    "_component_type": {
+      "DWG": "set automatically: a drawing of a PART",
+      "ASM": "set automatically: a drawing of a SUBASSEMBLY (the A prefix in the part number)",
+      "FDM": "human: 3D printed. Nothing in Onshape distinguishes printer-bound from mill-bound.",
+      "CNC": "human: machined."
     }
   }
 }

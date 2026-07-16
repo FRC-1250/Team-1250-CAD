@@ -138,25 +138,42 @@ class Client:
 
     # -- Stage 2: elements ------------------------------------------------
 
-    def drawings_at_version(self, did, vid):
-        """Drawings only. elementType=APPLICATION + dataType filter (spec 4.6).
+    def elements_at_version(self, did, vid):
+        """EVERY element at a version. One call -- no elementType filter.
 
-        The dataType check is REQUIRED, not cosmetic: APPLICATION also matches
-        CAM Studio tabs, which the Educator plan includes.
+        We fetch unfiltered and classify client-side (see classify()) because we
+        care about two kinds now:
+          - drawings      (APPLICATION + onshape-app/drawing) -> export a PDF
+          - part studios  (PARTSTUDIO)                        -> issue only, no PDF
+        Asking Onshape to pre-filter would cost a second call to get the other
+        kind, and the response is small either way. Same 1 call per document.
         """
-        els = self._request(
-            "GET",
-            "/documents/d/{}/v/{}/elements".format(did, vid),
-            {"elementType": DRAWING_ELEMENT_TYPE},
-        )
-        return [
-            e
-            for e in els
-            if e.get("dataType") == DRAWING_DATA_TYPE
-            # `deleted` is in the v16 schema but ABSENT from real responses.
-            # e["deleted"] would KeyError on every element. Always .get().
-            and not e.get("deleted", False)
-        ]
+        els = self._request("GET", "/documents/d/{}/v/{}/elements".format(did, vid))
+        # `deleted` is in the v16 schema but ABSENT from real responses.
+        # e["deleted"] would KeyError on every element. Always .get().
+        return [e for e in els if not e.get("deleted", False)]
+
+
+# Element kinds we act on. Everything else (assemblies, BOMs, blobs, CAM
+# studios, feature studios) is ignored.
+KIND_DRAWING = "drawing"
+KIND_PARTSTUDIO = "partstudio"
+
+
+def classify(el):
+    """-> KIND_DRAWING | KIND_PARTSTUDIO | None.
+
+    Drawings are APPLICATION elements with dataType 'onshape-app/drawing' --
+    NOT elementType=DRAWING, which is a legal enum value that no drawing reports
+    (spec 4.6). The dataType check also excludes CAM Studio, which is APPLICATION
+    too and which the Educator plan includes.
+    """
+    et, dt = el.get("elementType"), el.get("dataType")
+    if et == DRAWING_ELEMENT_TYPE and dt == DRAWING_DATA_TYPE:
+        return KIND_DRAWING
+    if et == "PARTSTUDIO":
+        return KIND_PARTSTUDIO
+    return None
 
     # -- Stage 3: export --------------------------------------------------
 

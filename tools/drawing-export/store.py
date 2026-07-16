@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS drawing_state (
     version_id     TEXT,
     version_name   TEXT,
     microversion   TEXT,
+    element_kind   TEXT,
     configuration  TEXT,
     -- Attribution. Comes from BTVersionInfo.creator, which Stage 1 already
     -- fetches, so it costs nothing. CAVEAT: this is who created the VERSION,
@@ -112,6 +113,8 @@ def now():
 MIGRATIONS = [
     ("drawing_state", "creator_id", "TEXT"),
     ("drawing_state", "creator_name", "TEXT"),
+    # 'drawing' | 'partstudio'. Part studios have no PDF -- issue + component link only.
+    ("drawing_state", "element_kind", "TEXT"),
 ]
 
 
