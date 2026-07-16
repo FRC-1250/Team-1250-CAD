@@ -47,31 +47,70 @@ def git(repo, *args, check=True):
     return p.stdout.strip()
 
 
-def comment_body(ident, blob_url, version_name, doc_name):
+def author_label(cfg, creator_id, creator_name):
+    """Who to credit. Local lookup -- no API call.
+
+    Mapped   -> '@login' (pings them).
+    Unmapped -> the plain Onshape name: informative, but never pings the wrong
+                person. See users.unresolved_policy for 'fallback'/'subsystem_owner'.
+    """
+    u = cfg.get("users") or {}
+    m = {k: v for k, v in (u.get("map") or {}).items() if not k.startswith("_")}
+    login = m.get(creator_id)
+    if login:
+        return "@" + login
+    policy = u.get("unresolved_policy", "none")
+    if policy == "fallback" and u.get("fallback_login"):
+        return "@" + u["fallback_login"]
+    if policy == "subsystem_owner":
+        return None  # resolved by caller, which knows the subsystem
+    return creator_name or None
+
+
+def subsystem_label(cfg, n):
+    """'1 - Chassis'. Local lookup, no API call.
+
+    Explicit config.subsystems wins; otherwise fall back to the document `key`
+    (which doubles as the --doc CLI arg, so it may not be the name you want to
+    show); otherwise the bare number.
+    """
+    explicit = (cfg.get("subsystems") or {}).get(str(n))
+    if explicit:
+        return "{} - {}".format(n, explicit)
+    for d in cfg.get("documents") or []:
+        if d.get("subsystem") == n and d.get("key"):
+            return "{} - {}".format(n, d["key"].title())
+    return str(n)
+
+
+def comment_body(cfg, ident, blob_url, version_name, doc_name, author=None):
+    by = "\n| Drawn by | {} |".format(author) if author else ""
     return (
         "**Drawing PDF updated** -- `{id}`\n\n"
         "| | |\n|---|---|\n"
         "| Part | `{id}` |\n"
-        "| Subsystem | {sub} |\n"
+        "| Subsystem | {sub} |{by}\n"
         "| Onshape document | {doc} |\n"
         "| Version | {ver} |\n\n"
         "[View PDF]({url})\n\n"
         "<sub>Posted automatically by `tools/drawing-export`. The link is pinned to "
         "the commit, so it always shows this version of the drawing.</sub>"
-    ).format(id=ident.id, sub=ident.subsystem, doc=doc_name, ver=version_name, url=blob_url)
+    ).format(id=ident.id, sub=subsystem_label(cfg, ident.subsystem), by=by,
+             doc=doc_name, ver=version_name, url=blob_url)
 
 
-def issue_body(ident, blob_url):
+def issue_body(cfg, ident, blob_url, author=None):
+    by = " Last versioned by {}.".format(author) if author else ""
     return (
         "### Component Description\n\n"
         "_Auto-created by `tools/drawing-export` for part `{id}`, which had a drawing "
         "but no tracking issue._\n\n"
-        "Subsystem {sub}. Please fill in a real description.\n\n"
+        "Subsystem **{sub}**.{by} Please fill in a real description.\n\n"
         "### Notes / Links\n\n"
         "[Drawing PDF]({url})\n\n"
         "<sub>The part number `{id}` is in this issue's title so future drawing "
         "exports link here automatically.</sub>"
-    ).format(id=ident.id, sub=ident.subsystem, url=blob_url)
+    ).format(id=ident.id, sub=subsystem_label(cfg, ident.subsystem), by=by, url=blob_url)
 
 
 def main():
@@ -97,7 +136,7 @@ def main():
     st = store.Store(args.db)
     rows = st.db.execute(
         "SELECT e.element_id, e.source_id, e.output_path, ds.identifier, ds.version_name, "
-        "       ds.document_name, ds.element_name "
+        "       ds.document_name, ds.element_name, ds.creator_id, ds.creator_name "
         "FROM export e JOIN drawing_state ds "
         "  ON ds.element_id=e.element_id AND ds.source_id=e.source_id "
         "LEFT JOIN publish p "
@@ -198,8 +237,9 @@ def main():
         blob = "{}/blob/{}/{}".format(cfg["output"]["repo_url"].rstrip("/"), sha, rel)
         try:
             if len(hits) == 1:
+                author = author_label(cfg, r["creator_id"], r["creator_name"])
                 url = gh.comment(hits[0]["number"], comment_body(
-                    ident, blob, r["version_name"], r["document_name"]))
+                    cfg, ident, blob, r["version_name"], r["document_name"], author))
                 st.db.execute(
                     "INSERT OR REPLACE INTO publish(element_id,source_id,format,status,identifier,"
                     "repo_path,commit_sha,blob_url,issue_number,comment_url,published_at) "
@@ -227,7 +267,8 @@ def main():
                 title = (r["element_name"] or ident.id).strip()
                 if ident.id not in title:
                     title = "{} {}".format(ident.id, title)
-                num, url = gh.create_issue(title, issue_body(ident, blob))
+                author = author_label(cfg, r["creator_id"], r["creator_name"])
+                num, url = gh.create_issue(title, issue_body(cfg, ident, blob, author))
                 st.db.execute(
                     "INSERT OR REPLACE INTO publish(element_id,source_id,format,status,identifier,"
                     "repo_path,commit_sha,blob_url,issue_number,comment_url,published_at) "

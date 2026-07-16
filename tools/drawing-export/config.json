@@ -63,6 +63,15 @@
     "_no_version_suffix": "git history IS the version history; issue links are commit-pinned blob URLs"
   },
 
+  "subsystems": {
+    "_comment": "Subsystem number -> human name, shown in issue comments. Not everyone knows the numbers. Costs no API call -- it's a local lookup. If a number is missing here, the name falls back to documents[].key, then to the bare number.",
+    "1": "Chassis",
+    "2": "Hopper",
+    "3": "Intake",
+    "4": "Indexer",
+    "5": "Shooter"
+  },
+
   "users": {
     "_comment": "Onshape user id -> GitHub login, for attributing drawings in issue comments. Run `py reconcile_users.py` to populate. Attribution comes from the VERSION creator (free), not the drawing author -- see store.py.",
     "_why_manual": "Auto-matching mostly fails: 4 of 7 GitHub accounts on this repo have no `name` set, so there is nothing to match an Onshape display name against. Exact matches are applied automatically; everything else needs a human once.",
