@@ -1,0 +1,17 @@
+# Credentials -- NEVER commit. Onshape API keys grant full account access.
+secrets.json
+.env
+
+# Local state: export cursors, call_log, skip_log
+state.db
+*.db
+*.db-journal
+
+# Exported PDFs land here before being committed to Team-1250-CAD
+out/
+
+# Local clone of the PDF repo (if placed inside this tree)
+Team-1250-CAD/
+
+__pycache__/
+*.pyc

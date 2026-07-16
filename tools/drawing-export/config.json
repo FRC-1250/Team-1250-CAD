@@ -1,0 +1,80 @@
+{
+  "_comment": "Onshape drawing export config. See drawing-export-spec.md and CLAUDE.md.",
+
+  "onshape": {
+    "base_url": "https://cad.onshape.com/api/v16",
+    "company_id": "68b9b68c8ebe03eeb23bbe39",
+    "folder_parent_id": "2b21f048c6c582e58dd11553"
+  },
+
+  "documents": [
+    {
+      "key": "chassis",
+      "subsystem": 1,
+      "name": "1250-26B-100 Chassis",
+      "did": "9277e520a8289c72778da2ae",
+      "wid": "7b7c1c4a728bdb6e94ce23eb"
+    },
+    {
+      "key": "hopper",
+      "subsystem": 2,
+      "name": "200 - Hopper",
+      "did": "68792c7463079f942fa974c6",
+      "wid": "c3ab1bd3857d6cb5d3dfd0d0"
+    },
+    {
+      "key": "intake",
+      "subsystem": 3,
+      "name": "300 - Intake",
+      "did": "2804f62a7e8f5ff183ab6572",
+      "wid": "0de470ed384a0ee48ac669a5"
+    },
+    {
+      "key": "indexer",
+      "subsystem": 4,
+      "name": "400 - Indexer",
+      "did": "40947c5fc5c8a5c4365103df",
+      "wid": "1c8ba6abeb1db3a4d60fe11f"
+    },
+    {
+      "key": "shooter",
+      "subsystem": 5,
+      "name": "500 - Shooter",
+      "did": "c77f90962367c7f31b513455",
+      "wid": "3fd4bdfdd69487024a4bdfae"
+    }
+  ],
+
+  "_excluded_deliberately": {
+    "77ccfe85426b6dca10c64431": {
+      "what": "Top-level robot assembly. Referenced by chassis V4/V13 auto-versions.",
+      "why_excluded": "No drawings expected -- it consumes subsystems rather than detailing parts. Scanning it costs ~138-276 calls/cycle for nothing: it references all 5 subsystem docs, so every subsystem version triggers a reference refresh here, meaning its modifiedAt changes constantly. It would clear Stage 0 on nearly every run and burn a Stage 1 versions call, only to be rejected as purpose!=0 auto-versions or return 0 drawings.",
+      "when_to_add": "If drawings are ever authored here, add it to `documents` with its subsystem number. Nothing else changes -- the cascade handles it.",
+      "decided": "2026-07-16"
+    }
+  },
+
+  "output": {
+    "root": "out",
+    "repo_path": "../..",
+    "repo_url": "https://github.com/FRC-1250/Team-1250-CAD",
+    "_paths": "Relative to this config file, so a fresh clone works with no edits. When the tool lives at <repo>/tools/drawing-export/, repo_path '../..' IS the repo root. Absolute paths also work if you prefer.",
+    "_layout": "<repo>/<team>-<yy><bot>/<identifier>.pdf  e.g. 1250-26B/1250-26B-501.pdf",
+    "_no_version_suffix": "git history IS the version history; issue links are commit-pinned blob URLs"
+  },
+
+  "budget": {
+    "max_calls_per_run": 120,
+    "max_calls_per_cycle": 2500,
+    "warn_at_cycle_calls": 1500,
+    "_note": "Educator = 2500/YEAR shared company-wide. Reset date UNRESOLVED (spec 6). Assume the LATER reading (~Feb 19 2027). Never spend against an assumed reset."
+  },
+
+  "http": {
+    "poll_initial_seconds": 5,
+    "poll_backoff_factor": 1.8,
+    "poll_max_seconds": 60,
+    "poll_max_attempts": 12,
+    "timeout_seconds": 60
+  }
+}
